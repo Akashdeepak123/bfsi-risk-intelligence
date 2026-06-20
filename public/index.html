@@ -231,224 +231,151 @@ textarea.inp::placeholder{color:rgba(255,255,255,.2)}
 </div>
 
 <script>
-const SESSION_ID = 'bfsi_' + Date.now();
-
+// ── Examples ──────────────────────────────────────────────────────────────
 const EXAMPLES = {
-  portfolio: `Portfolio:
-1. Muthoot Microfin, Microfinance, Rs 450 crore exposure
-2. Sunteck Realty, Real estate, Rs 280 crore exposure`,
-  regulatory: `Regulatory: RBI consumer credit risk weight increase November 2023 — assess full impact on NBFC operations`,
-  combined: `Portfolio:
-1. Muthoot Microfin, Microfinance, Rs 450 crore exposure
-2. Sunteck Realty, Real estate, Rs 280 crore exposure
-
-Regulatory: RBI consumer credit risk weight increase November 2023`
+  portfolio: `Portfolio:\n1. Muthoot Microfin, Microfinance, Rs 450 crore exposure\n2. Sunteck Realty, Real estate, Rs 280 crore exposure`,
+  regulatory: `Regulatory: RBI consumer credit risk weight increase November 2023`,
+  combined: `Portfolio:\n1. Muthoot Microfin, Microfinance, Rs 450 crore exposure\n2. Sunteck Realty, Real estate, Rs 280 crore exposure\n\nRegulatory: RBI consumer credit risk weight increase November 2023`
 };
-
-const STAGES = ['ps1','ps2','ps3','ps4','ps5'];
-const STAGE_LABELS = ['Routing input...','Credit Risk Sentinel running...','FinReg Assessor parsing...','Risk Nexus Integrating...','Generating reports...'];
-let stageTimer = null, stageIdx = 0;
 
 function loadExample(type) {
   document.getElementById('inp').value = EXAMPLES[type];
-  document.querySelectorAll('.eg-btn').forEach(b => b.classList.remove('on'));
-  document.getElementById(`eg${type==='portfolio'?1:type==='regulatory'?2:3}`).classList.add('on');
-}
-
-function startStages() {
-  document.getElementById('pipeline').style.display = 'flex';
-  stageIdx = 0;
-  STAGES.forEach(s => { document.getElementById(s).classList.remove('active','done'); });
-  animateStage();
-}
-
-function animateStage() {
-  if (stageIdx < STAGES.length) {
-    if (stageIdx > 0) document.getElementById(STAGES[stageIdx-1]).classList.replace('active','done');
-    document.getElementById(STAGES[stageIdx]).classList.add('active');
-    document.getElementById('ld-t').textContent = STAGE_LABELS[stageIdx];
-    stageIdx++;
-    stageTimer = setTimeout(animateStage, 12000 / STAGES.length);
-  }
-}
-
-function stopStages() {
-  clearTimeout(stageTimer);
-  STAGES.forEach(s => {
-    const el = document.getElementById(s);
-    el.classList.remove('active');
-    el.classList.add('done');
-  });
-}
-
-async function runQuery() {
-  const msg = document.getElementById('inp').value.trim();
-  if (!msg) { document.getElementById('inp').focus(); return; }
-
-  // Reset UI
-  document.getElementById('err').style.display = 'none';
-  document.getElementById('results').style.display = 'none';
-  document.getElementById('run-btn').disabled = true;
-  document.getElementById('run-btn').innerHTML = 'Running... <span>↻</span>';
-  document.getElementById('ld').style.display = 'block';
-  document.getElementById('ld').scrollIntoView({behavior:'smooth',block:'center'});
-  startStages();
-
-  try {
-    const res = await fetch('/api/chat', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message: msg, session_id: SESSION_ID })
-    });
-    const data = await res.json();
-
-    if (!res.ok || data.error) {
-      throw new Error(data.error || `Server error ${res.status}`);
-    }
-
-    stopStages();
-    document.getElementById('ld').style.display = 'none';
-    render(data.response, msg);
-
-  } catch (e) {
-    stopStages();
-    document.getElementById('ld').style.display = 'none';
-    document.getElementById('err').style.display = 'block';
-    document.getElementById('err-m').textContent = e.message;
-  } finally {
-    document.getElementById('run-btn').disabled = false;
-    document.getElementById('run-btn').innerHTML = 'Run Analysis <span>→</span>';
-  }
-}
-
-// Simple section split — no regex, no errors
-function splitSections(raw) {
-  const out = { 1: '', 2: '', 3: '', 4: '' };
-  if (!raw || typeof raw !== 'string') return out;
-
-  // Normalise: ### SECTION 3 → SECTION 3
-  const text = raw.replace(/#{1,4}\s*/g, '').replace(/\*\*(SECTION)/gi, '$1');
-
-  // Split on "SECTION N" boundaries
-  const parts = text.split(/(?=SECTION\s*[1-4][\s:*—–-])/i);
-
-  for (const part of parts) {
-    const match = part.match(/SECTION\s*([1-4])[\s:*—–-]+([\s\S]*)/i);
-    if (match) {
-      const num = parseInt(match[1]);
-      if (num >= 1 && num <= 4) {
-        out[num] = match[2].trim();
-      }
-    }
-  }
-
-  // If no sections found, put everything in section 2
-  if (!out[1] && !out[2] && !out[3] && !out[4]) {
-    out[2] = text.trim();
-  }
-
-  return out;
-}
-
-function detectRisk(text) {
-  if (!text) return 'green';
-  const t = text.toUpperCase();
-  if (t.includes('CRITICAL') || (t.includes(' RED ') && t.includes('IMMEDIATE'))) return 'red';
-  if (t.includes('AMBER') || t.includes('ELEVATED') || t.includes('WATCH')) return 'amber';
-  return 'green';
-}
-
-function extractFindings(text) {
-  if (!text || typeof text !== 'string') return [];
-  const findings = [];
-  const lines = text.split('\n');
-  for (const line of lines) {
-    const l = line.trim();
-    if (!l || l.length < 20) continue;
-    // Numbered: "1. Finding text" or "1) Finding text"
-    const numbered = l.match(/^[1-9][.)]\s+(.{20,})/);
-    if (numbered) { findings.push(numbered[1].replace(/\*\*/g,'')); continue; }
-    // Bullet: "- Finding" or "• Finding"
-    const bullet = l.match(/^[-•*]\s+(.{20,})/);
-    if (bullet) { findings.push(bullet[1].replace(/\*\*/g,'')); continue; }
-    if (findings.length >= 3) break;
-  }
-  return findings.slice(0, 4);
-}
-
-function render(raw, inputMsg) {
-  try {
-    const sec = splitSections(raw);
-
-    const s1text = sec[1] || inputMsg.slice(0, 150);
-    const s2text = sec[2] || raw || 'No CRO brief returned.';
-    const s3text = sec[3] || '';
-    const s4text = sec[4] || '';
-
-    // Section 1 — pills + summary
-    const combined = (s1text + inputMsg).toUpperCase();
-    const hasPort = combined.includes('PORTFOLIO') || combined.includes('MUTHOOT') || combined.includes('EXPOSURE');
-    const hasReg  = combined.includes('REGULATORY') || combined.includes('RBI') || combined.includes('CIRCULAR');
-    let s1html = '<div class="classif">';
-    if (hasPort) s1html += '<span class="cl-pill cl-port">Portfolio EWS</span>';
-    if (hasReg)  s1html += '<span class="cl-pill cl-reg">Regulatory</span>';
-    s1html += '<span class="cl-text">' + (s1text.slice(0, 240) || 'Input classified.') + '</span></div>';
-    document.getElementById('s1').innerHTML = s1html;
-
-    // Risk badge
-    const risk = detectRisk(s2text + s3text);
-    const badge = document.getElementById('risk-badge');
-    badge.textContent = risk === 'red' ? 'High Risk' : risk === 'amber' ? 'Elevated Risk' : 'Analysed';
-    badge.className = 'res-badge badge-' + risk;
-
-    // Section 2 — CRO brief
-    document.getElementById('s2').textContent = s2text.slice(0, 4000);
-
-    // Section 3 — Board summary
-    document.getElementById('s3').textContent = s3text || 'See CRO Technical Brief above.';
-
-    // Section 4 — findings
-    const findings = extractFindings(s4text);
-    const s4el = document.getElementById('s4');
-    if (findings.length > 0) {
-      s4el.innerHTML = findings.map((f, i) =>
-        '<div class="finding"><div class="finding-n">' + (i+1) + '</div><div class="finding-t">' + f + '</div></div>'
-      ).join('');
-    } else if (s4text) {
-      s4el.innerHTML = '<div class="sec-body">' + s4text.slice(0, 800) + '</div>';
-    } else {
-      s4el.innerHTML = '<div class="sec-body" style="color:rgba(255,255,255,.3)">Run the full pipeline (portfolio + regulatory) to see integration findings.</div>';
-    }
-
-    document.getElementById('results').style.display = 'block';
-    document.getElementById('results').scrollIntoView({ behavior: 'smooth', block: 'start' });
-
-  } catch (err) {
-    // Ultimate fallback — show raw response so output is never lost
-    document.getElementById('s1').textContent = 'Analysis complete';
-    document.getElementById('s2').textContent = typeof raw === 'string' ? raw : JSON.stringify(raw);
-    document.getElementById('s3').textContent = '';
-    document.getElementById('s4').innerHTML = '';
-    document.getElementById('risk-badge').textContent = 'Analysed';
-    document.getElementById('risk-badge').className = 'res-badge badge-green';
-    document.getElementById('results').style.display = 'block';
-    document.getElementById('results').scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }
+  document.querySelectorAll('.eg-btn').forEach(function(b){ b.classList.remove('on'); });
+  var map = { portfolio: 'eg1', regulatory: 'eg2', combined: 'eg3' };
+  document.getElementById(map[type]).classList.add('on');
 }
 
 function clearAll() {
   document.getElementById('inp').value = '';
   document.getElementById('results').style.display = 'none';
   document.getElementById('err').style.display = 'none';
-  document.getElementById('pipeline').style.display = 'none';
-  document.querySelectorAll('.eg-btn').forEach(b => b.classList.remove('on'));
-  STAGES.forEach(s => document.getElementById(s).classList.remove('active','done'));
-  window.scrollTo({top:0,behavior:'smooth'});
+  document.getElementById('ld').style.display = 'none';
+  document.querySelectorAll('.eg-btn').forEach(function(b){ b.classList.remove('on'); });
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-document.getElementById('inp').addEventListener('keydown', e => {
+// ── Main fetch ─────────────────────────────────────────────────────────────
+async function runQuery() {
+  var msg = (document.getElementById('inp').value || '').trim();
+  if (!msg) { document.getElementById('inp').focus(); return; }
+
+  document.getElementById('err').style.display = 'none';
+  document.getElementById('results').style.display = 'none';
+  document.getElementById('pipeline').style.display = 'none';
+  document.getElementById('ld').style.display = 'block';
+  document.getElementById('run-btn').disabled = true;
+  document.getElementById('run-btn').textContent = 'Running...';
+  document.getElementById('ld').scrollIntoView({ block: 'center' });
+
+  try {
+    var res = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: msg })
+    });
+
+    // Use text() not json() — avoids encoding/pattern errors
+    var raw = await res.text();
+    var response = raw;
+
+    // Safely extract response string
+    try {
+      var parsed = JSON.parse(raw);
+      if (parsed && typeof parsed.response === 'string') response = parsed.response;
+      else if (parsed && typeof parsed.error === 'string') throw new Error(parsed.error);
+      else if (parsed && typeof parsed.message === 'string') response = parsed.message;
+    } catch(parseErr) {
+      if (parseErr.message && !parseErr.message.includes('JSON')) throw parseErr;
+      response = raw; // not JSON — use as-is
+    }
+
+    if (!res.ok) throw new Error(response.slice(0, 200));
+
+    document.getElementById('ld').style.display = 'none';
+    showResult(response, msg);
+
+  } catch(e) {
+    document.getElementById('ld').style.display = 'none';
+    document.getElementById('err').style.display = 'block';
+    document.getElementById('err-m').textContent = String(e && e.message ? e.message : e);
+  }
+
+  document.getElementById('run-btn').disabled = false;
+  document.getElementById('run-btn').innerHTML = 'Run Analysis <span>→</span>';
+}
+
+// ── Display ────────────────────────────────────────────────────────────────
+function showResult(text, input) {
+  // Section split by plain string indexOf
+  var sections = { 1: '', 2: '', 3: '', 4: '' };
+  var clean = text.replace(/#{1,4}\s*/g, '');
+
+  [1,2,3,4].forEach(function(n) {
+    var marker = 'SECTION ' + n;
+    var start = clean.toUpperCase().indexOf(marker);
+    if (start === -1) return;
+    var afterHeader = clean.indexOf('\n', start);
+    if (afterHeader === -1) return;
+    var nextMarker = n < 4 ? clean.toUpperCase().indexOf('SECTION ' + (n+1), afterHeader) : -1;
+    sections[n] = (nextMarker === -1
+      ? clean.slice(afterHeader)
+      : clean.slice(afterHeader, nextMarker)
+    ).trim();
+  });
+
+  // Section 1
+  var inp = (input || '').toUpperCase();
+  var hasPort = inp.includes('PORTFOLIO') || inp.includes('EXPOSURE');
+  var hasReg  = inp.includes('REGULATORY') || inp.includes('RBI');
+  var s1html = '<div class="classif">';
+  if (hasPort) s1html += '<span class="cl-pill cl-port">Portfolio EWS</span>';
+  if (hasReg)  s1html += '<span class="cl-pill cl-reg">Regulatory</span>';
+  s1html += '<span class="cl-text">' + (sections[1] || 'Both pipelines active').slice(0, 200) + '</span></div>';
+  document.getElementById('s1').innerHTML = s1html;
+
+  // Risk badge
+  var all = (sections[2] + sections[3]).toUpperCase();
+  var risk = all.includes('CRITICAL') ? 'red'
+           : (all.includes('AMBER') || all.includes('ELEVATED') || all.includes(' RED ')) ? 'amber'
+           : 'green';
+  var badge = document.getElementById('risk-badge');
+  badge.textContent = risk === 'red' ? 'High Risk' : risk === 'amber' ? 'Elevated Risk' : 'Analysed';
+  badge.className = 'res-badge badge-' + risk;
+
+  // Sections 2 & 3
+  document.getElementById('s2').textContent = sections[2] || text;
+  document.getElementById('s3').textContent = sections[3] || 'See CRO Technical Brief above.';
+
+  // Section 4 findings
+  var s4 = sections[4] || '';
+  var lines = s4.split('\n');
+  var findings = [];
+  for (var i = 0; i < lines.length; i++) {
+    var l = lines[i].trim().replace(/\*\*/g, '');
+    var m = l.match(/^[1-9][.)]\s+(.{15,})/);
+    if (m) findings.push(m[1]);
+    else if (/^[-•]\s+.{15,}/.test(l)) findings.push(l.replace(/^[-•]\s+/, ''));
+    if (findings.length >= 4) break;
+  }
+  var s4el = document.getElementById('s4');
+  if (findings.length > 0) {
+    s4el.innerHTML = findings.map(function(f, i) {
+      return '<div class="finding"><div class="finding-n">' + (i+1) + '</div><div class="finding-t">' + f + '</div></div>';
+    }).join('');
+  } else {
+    s4el.innerHTML = s4
+      ? '<div class="sec-body">' + s4.slice(0, 600) + '</div>'
+      : '<div class="sec-body" style="color:rgba(255,255,255,.3)">Run full pipeline to see integration findings.</div>';
+  }
+
+  document.getElementById('results').style.display = 'block';
+  document.getElementById('results').scrollIntoView({ block: 'start' });
+}
+
+document.getElementById('inp').addEventListener('keydown', function(e) {
   if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') runQuery();
 });
+
 </script>
 </body>
 </html>
