@@ -22,9 +22,9 @@ export default async function handler(req) {
 
   const LYZR_API_KEY = process.env.LYZR_API_KEY;
   const AGENT_ID     = process.env.LYZR_AGENT_ID;
-  Const LYZR_USER_ID = process.env.LYZR_USER_IF;
+  Const LYZR_USER_ID = process.env.LYZR_USER_ID;
 
-  if (!LYZR_API_KEY || !AGENT_ID) {
+  if (!LYZR_API_KEY || !AGENT_ID || !LYZR_USER_ID) {
     return new Response(
       JSON.stringify({ error: 'Server not configured. Check LYZR_API_KEY and LYZR_AGENT_ID env vars.' }),
       { status: 500, headers: { 'Content-Type': 'application/json' } }
