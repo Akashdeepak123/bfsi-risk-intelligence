@@ -22,6 +22,7 @@ export default async function handler(req) {
 
   const LYZR_API_KEY = process.env.LYZR_API_KEY;
   const AGENT_ID     = process.env.LYZR_AGENT_ID;
+  Const LYZR_USER_ID = process.env.LYZR_USER_IF;
 
   if (!LYZR_API_KEY || !AGENT_ID) {
     return new Response(
