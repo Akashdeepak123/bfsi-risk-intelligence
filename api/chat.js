@@ -22,7 +22,7 @@ export default async function handler(req) {
 
   const LYZR_API_KEY = process.env.LYZR_API_KEY;
   const AGENT_ID     = process.env.LYZR_AGENT_ID;
-  Const LYZR_USER_ID = process.env.LYZR_USER_ID;
+  const LYZR_USER_ID = process.env.LYZR_USER_ID;
 
   if (!LYZR_API_KEY || !AGENT_ID || !LYZR_USER_ID) {
     return new Response(
@@ -45,14 +45,14 @@ export default async function handler(req) {
     });
   }
 
-  const payload = {
-    user_id:   'bfsi_demo_user',
-    agent_id:  AGENT_ID,
-    session_id: session_id || `session_${Date.now()}`,
-    message:   message.trim(),
-    system_prompt_variables: {},
-    filter_variables: {}
-  };
+const payload = {
+  user_id:   LYZR_USER_ID,
+  agent_id:  AGENT_ID,
+  session_id: session_id || `session_${Date.now()}`,
+  message:   message.trim(),
+  system_prompt_variables: {},
+  filter_variables: {}
+};
 
   try {
     const upstream = await fetch(LYZR_ENDPOINT, {
