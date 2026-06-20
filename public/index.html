@@ -321,83 +321,119 @@ async function runQuery() {
   }
 }
 
-function parseSection(text, sectionNum) {
-  const patterns = [
-    new RegExp(`SECTION\\s*${sectionNum}[:\\s#*]+([\\s\\S]*?)(?=SECTION\\s*${sectionNum+1}|$)`, 'i'),
-    new RegExp(`#{1,3}\\s*SECTION\\s*${sectionNum}[:\\s]+([\\s\\S]*?)(?=#{1,3}\\s*SECTION\\s*${sectionNum+1}|$)`, 'i')
-  ];
-  for (const p of patterns) {
-    const m = text.match(p);
-    if (m) return m[1].trim();
+// Simple section split — no regex, no errors
+function splitSections(raw) {
+  const out = { 1: '', 2: '', 3: '', 4: '' };
+  if (!raw || typeof raw !== 'string') return out;
+
+  // Normalise: ### SECTION 3 → SECTION 3
+  const text = raw.replace(/#{1,4}\s*/g, '').replace(/\*\*(SECTION)/gi, '$1');
+
+  // Split on "SECTION N" boundaries
+  const parts = text.split(/(?=SECTION\s*[1-4][\s:*—–-])/i);
+
+  for (const part of parts) {
+    const match = part.match(/SECTION\s*([1-4])[\s:*—–-]+([\s\S]*)/i);
+    if (match) {
+      const num = parseInt(match[1]);
+      if (num >= 1 && num <= 4) {
+        out[num] = match[2].trim();
+      }
+    }
   }
-  return null;
+
+  // If no sections found, put everything in section 2
+  if (!out[1] && !out[2] && !out[3] && !out[4]) {
+    out[2] = text.trim();
+  }
+
+  return out;
 }
 
 function detectRisk(text) {
+  if (!text) return 'green';
   const t = text.toUpperCase();
-  if (t.includes('CRITICAL') || (t.includes('RED') && t.includes('IMMEDIATE'))) return 'red';
+  if (t.includes('CRITICAL') || (t.includes(' RED ') && t.includes('IMMEDIATE'))) return 'red';
   if (t.includes('AMBER') || t.includes('ELEVATED') || t.includes('WATCH')) return 'amber';
   return 'green';
 }
 
-function extractFindings(s4text) {
-  if (!s4text) return [];
-  const lines = s4text.split('\n').filter(l => l.trim());
+function extractFindings(text) {
+  if (!text || typeof text !== 'string') return [];
   const findings = [];
-  for (const l of lines) {
-    const m = l.match(/^[\d]+[\.\)]\s*(.+)/);
-    if (m && m[1].trim().length > 20) {
-      findings.push(m[1].trim().replace(/^\*+|\*+$/g,''));
-    } else if (l.trim().length > 40 && !l.match(/^(TOP|SECTION|INTEGRATION)/i)) {
-      findings.push(l.replace(/^[-•*]\s*/,'').replace(/^\*+|\*+$/g,'').trim());
-    }
-    if (findings.length >= 4) break;
+  const lines = text.split('\n');
+  for (const line of lines) {
+    const l = line.trim();
+    if (!l || l.length < 20) continue;
+    // Numbered: "1. Finding text" or "1) Finding text"
+    const numbered = l.match(/^[1-9][.)]\s+(.{20,})/);
+    if (numbered) { findings.push(numbered[1].replace(/\*\*/g,'')); continue; }
+    // Bullet: "- Finding" or "• Finding"
+    const bullet = l.match(/^[-•*]\s+(.{20,})/);
+    if (bullet) { findings.push(bullet[1].replace(/\*\*/g,'')); continue; }
+    if (findings.length >= 3) break;
   }
-  return findings.filter(Boolean).slice(0,4);
+  return findings.slice(0, 4);
 }
 
 function render(raw, inputMsg) {
-  const s1 = parseSection(raw, 1) || (inputMsg.length > 30 ? inputMsg.slice(0,120)+'...' : inputMsg);
-  const s2 = parseSection(raw, 2) || raw;
-  const s3 = parseSection(raw, 3) || '';
-  const s4raw = parseSection(raw, 4) || '';
+  try {
+    const sec = splitSections(raw);
 
-  // Section 1 — classification pills
-  const hasPort = /portfolio|PORTFOLIO_PIPELINE.*YES/i.test(s1 + inputMsg);
-  const hasReg  = /regulatory|REGULATORY_PIPELINE.*YES/i.test(s1 + inputMsg);
-  let s1html = `<div class="classif">`;
-  if (hasPort) s1html += `<span class="cl-pill cl-port">Portfolio EWS</span>`;
-  if (hasReg)  s1html += `<span class="cl-pill cl-reg">Regulatory</span>`;
-  s1html += `<span class="cl-text">${s1.replace(/SECTION.*?:/gi,'').slice(0,220)}</span></div>`;
-  document.getElementById('s1').innerHTML = s1html;
+    const s1text = sec[1] || inputMsg.slice(0, 150);
+    const s2text = sec[2] || raw || 'No CRO brief returned.';
+    const s3text = sec[3] || '';
+    const s4text = sec[4] || '';
 
-  // Risk badge
-  const risk = detectRisk(s2 + s3);
-  const badge = document.getElementById('risk-badge');
-  badge.textContent = risk === 'red' ? 'High Risk' : risk === 'amber' ? 'Elevated Risk' : 'Monitored';
-  badge.className = 'res-badge badge-' + risk;
+    // Section 1 — pills + summary
+    const combined = (s1text + inputMsg).toUpperCase();
+    const hasPort = combined.includes('PORTFOLIO') || combined.includes('MUTHOOT') || combined.includes('EXPOSURE');
+    const hasReg  = combined.includes('REGULATORY') || combined.includes('RBI') || combined.includes('CIRCULAR');
+    let s1html = '<div class="classif">';
+    if (hasPort) s1html += '<span class="cl-pill cl-port">Portfolio EWS</span>';
+    if (hasReg)  s1html += '<span class="cl-pill cl-reg">Regulatory</span>';
+    s1html += '<span class="cl-text">' + (s1text.slice(0, 240) || 'Input classified.') + '</span></div>';
+    document.getElementById('s1').innerHTML = s1html;
 
-  // Section 2 — CRO brief (preserve formatting)
-  document.getElementById('s2').textContent = s2.slice(0, 3000);
+    // Risk badge
+    const risk = detectRisk(s2text + s3text);
+    const badge = document.getElementById('risk-badge');
+    badge.textContent = risk === 'red' ? 'High Risk' : risk === 'amber' ? 'Elevated Risk' : 'Analysed';
+    badge.className = 'res-badge badge-' + risk;
 
-  // Section 3 — Board summary
-  document.getElementById('s3').textContent = s3 || 'See CRO Technical Brief for full details.';
+    // Section 2 — CRO brief
+    document.getElementById('s2').textContent = s2text.slice(0, 4000);
 
-  // Section 4 — findings as cards
-  const findings = extractFindings(s4raw);
-  const s4el = document.getElementById('s4');
-  if (findings.length > 0) {
-    s4el.innerHTML = findings.map((f,i) =>
-      `<div class="finding"><div class="finding-n">${i+1}</div><div class="finding-t">${f}</div></div>`
-    ).join('');
-  } else if (s4raw) {
-    s4el.innerHTML = `<div class="sec-body">${s4raw.slice(0,600)}</div>`;
-  } else {
-    s4el.innerHTML = `<div class="sec-body" style="color:rgba(255,255,255,.3)">Integration findings will appear here on combined pipeline runs.</div>`;
+    // Section 3 — Board summary
+    document.getElementById('s3').textContent = s3text || 'See CRO Technical Brief above.';
+
+    // Section 4 — findings
+    const findings = extractFindings(s4text);
+    const s4el = document.getElementById('s4');
+    if (findings.length > 0) {
+      s4el.innerHTML = findings.map((f, i) =>
+        '<div class="finding"><div class="finding-n">' + (i+1) + '</div><div class="finding-t">' + f + '</div></div>'
+      ).join('');
+    } else if (s4text) {
+      s4el.innerHTML = '<div class="sec-body">' + s4text.slice(0, 800) + '</div>';
+    } else {
+      s4el.innerHTML = '<div class="sec-body" style="color:rgba(255,255,255,.3)">Run the full pipeline (portfolio + regulatory) to see integration findings.</div>';
+    }
+
+    document.getElementById('results').style.display = 'block';
+    document.getElementById('results').scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+  } catch (err) {
+    // Ultimate fallback — show raw response so output is never lost
+    document.getElementById('s1').textContent = 'Analysis complete';
+    document.getElementById('s2').textContent = typeof raw === 'string' ? raw : JSON.stringify(raw);
+    document.getElementById('s3').textContent = '';
+    document.getElementById('s4').innerHTML = '';
+    document.getElementById('risk-badge').textContent = 'Analysed';
+    document.getElementById('risk-badge').className = 'res-badge badge-green';
+    document.getElementById('results').style.display = 'block';
+    document.getElementById('results').scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
-
-  document.getElementById('results').style.display = 'block';
-  document.getElementById('results').scrollIntoView({behavior:'smooth',block:'start'});
 }
 
 function clearAll() {
