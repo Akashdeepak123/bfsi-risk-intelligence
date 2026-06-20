@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>BFSI Risk Intelligence Command Center</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:'Inter',sans-serif;background:#07070D;color:#E0E0EA;font-size:14px;line-height:1.6;-webkit-font-smoothing:antialiased;min-height:100vh}
+
+/* NAV */
+.nav{position:fixed;top:0;left:0;right:0;z-index:100;height:56px;background:rgba(7,7,13,.92);backdrop-filter:blur(20px);border-bottom:1px solid rgba(255,255,255,.07);display:flex;align-items:center;justify-content:space-between;padding:0 2rem}
+.nav-l{display:flex;align-items:center;gap:10px}
+.nav-pulse{width:7px;height:7px;border-radius:50%;background:#00C48C;animation:pulse 2.5s ease infinite}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(0,196,140,.4)}50%{box-shadow:0 0 0 6px rgba(0,196,140,0)}}
+.nav-name{font-size:14px;font-weight:800;color:#fff;letter-spacing:-.02em}
+.nav-sep{width:1px;height:13px;background:rgba(255,255,255,.12)}
+.nav-sub{font-size:12px;color:rgba(255,255,255,.35)}
+.nav-badge{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#00C48C;background:rgba(0,196,140,.1);border:1px solid rgba(0,196,140,.25);padding:3px 10px;border-radius:100px}
+
+/* HERO */
+.hero{padding:108px 2rem 56px;text-align:center;background:radial-gradient(ellipse 70% 50% at 50% 0%,rgba(0,196,140,.06),transparent)}
+.hero-tag{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#00C48C;background:rgba(0,196,140,.08);border:1px solid rgba(0,196,140,.2);padding:4px 12px;border-radius:100px;margin-bottom:20px}
+h1{font-size:clamp(28px,5vw,52px);font-weight:900;letter-spacing:-.045em;color:#fff;line-height:1.08;margin-bottom:14px}
+h1 span{color:#00C48C}
+.hero-sub{font-size:15px;color:rgba(255,255,255,.4);max-width:520px;margin:0 auto 32px;line-height:1.7}
+.hero-stats{display:flex;align-items:center;justify-content:center;gap:28px;flex-wrap:wrap;margin-bottom:0}
+.stat{text-align:center}
+.stat-n{font-size:22px;font-weight:900;color:#00C48C;letter-spacing:-.04em}
+.stat-l{font-size:11px;color:rgba(255,255,255,.3);text-transform:uppercase;letter-spacing:.07em;margin-top:2px}
+
+/* MAIN LAYOUT */
+.main{max-width:960px;margin:0 auto;padding:0 2rem 80px}
+
+/* INPUT PANEL */
+.input-panel{background:#0F0F18;border:1px solid rgba(255,255,255,.08);border-radius:20px;padding:28px;margin-bottom:16px}
+.input-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.input-title{font-size:13px;font-weight:700;color:rgba(255,255,255,.6);letter-spacing:-.01em}
+.examples-row{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}
+.eg-btn{font-size:11px;font-weight:600;color:rgba(255,255,255,.45);background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:8px;padding:6px 12px;cursor:pointer;font-family:inherit;transition:all .15s;text-align:left}
+.eg-btn:hover{border-color:rgba(0,196,140,.3);color:rgba(255,255,255,.75);background:rgba(0,196,140,.05)}
+.eg-btn.on{border-color:rgba(0,196,140,.4);color:#00C48C;background:rgba(0,196,140,.08)}
+textarea.inp{width:100%;min-height:120px;background:#07070D;border:1.5px solid rgba(255,255,255,.1);border-radius:12px;padding:14px 16px;font-family:'Inter',sans-serif;font-size:13px;color:#E0E0EA;resize:vertical;outline:none;transition:border-color .15s;line-height:1.65}
+textarea.inp:focus{border-color:rgba(0,196,140,.4)}
+textarea.inp::placeholder{color:rgba(255,255,255,.2)}
+.run-row{display:flex;align-items:center;gap:12px;margin-top:12px}
+.run-btn{background:#00C48C;color:#07070D;border:none;border-radius:10px;padding:12px 28px;font-size:14px;font-weight:800;cursor:pointer;font-family:inherit;letter-spacing:-.01em;transition:all .15s;display:flex;align-items:center;gap:8px}
+.run-btn:hover{background:#00A878;transform:translateY(-1px)}
+.run-btn:active{transform:none}
+.run-btn:disabled{background:rgba(255,255,255,.08);color:rgba(255,255,255,.25);cursor:not-allowed;transform:none}
+.clear-btn{font-size:12px;color:rgba(255,255,255,.3);background:none;border:none;cursor:pointer;font-family:inherit;padding:4px 8px}
+.clear-btn:hover{color:rgba(255,255,255,.6)}
+
+/* PIPELINE VIZ */
+.pipeline{display:flex;align-items:center;gap:6px;margin-top:12px;flex-wrap:wrap}
+.pipe-stage{display:flex;align-items:center;gap:5px;font-size:11px;font-weight:600;color:rgba(255,255,255,.25);padding:4px 10px;border-radius:6px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);transition:all .3s}
+.pipe-stage.active{color:#00C48C;background:rgba(0,196,140,.08);border-color:rgba(0,196,140,.25)}
+.pipe-stage.done{color:rgba(255,255,255,.5);background:rgba(255,255,255,.04);border-color:rgba(255,255,255,.1)}
+.pipe-dot{width:5px;height:5px;border-radius:50%;background:currentColor;flex-shrink:0}
+.pipe-arr{font-size:10px;color:rgba(255,255,255,.15)}
+
+/* LOADING */
+.ld{display:none;text-align:center;padding:48px 0}
+.ld-ring{width:36px;height:36px;border:2.5px solid rgba(255,255,255,.08);border-top-color:#00C48C;border-radius:50%;animation:rot .7s linear infinite;margin:0 auto 16px}
+@keyframes rot{to{transform:rotate(360deg)}}
+.ld-t{font-size:14px;font-weight:600;color:rgba(255,255,255,.5)}
+.ld-s{font-size:12px;color:rgba(255,255,255,.25);margin-top:4px}
+
+/* ERROR */
+.err{display:none;background:rgba(220,38,38,.07);border:1px solid rgba(220,38,38,.2);border-radius:12px;padding:16px 20px;margin-bottom:16px}
+.err-t{font-size:13px;font-weight:700;color:#F87171;margin-bottom:4px}
+.err-m{font-size:12px;color:rgba(255,255,255,.45);line-height:1.55}
+
+/* RESULTS */
+.results{display:none}
+.res-header{display:flex;align-items:center;gap:10px;margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid rgba(255,255,255,.07)}
+.res-title{font-size:16px;font-weight:800;color:#fff;letter-spacing:-.02em}
+.res-badge{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:3px 9px;border-radius:6px}
+.badge-amber{background:rgba(217,119,6,.15);color:#FCD34D;border:1px solid rgba(217,119,6,.25)}
+.badge-red{background:rgba(220,38,38,.15);color:#F87171;border:1px solid rgba(220,38,38,.25)}
+.badge-green{background:rgba(0,196,140,.12);color:#00C48C;border:1px solid rgba(0,196,140,.25)}
+.new-btn{font-size:12px;font-weight:600;color:rgba(255,255,255,.4);background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:6px 14px;cursor:pointer;font-family:inherit;margin-left:auto;transition:all .15s}
+.new-btn:hover{color:#fff}
+
+/* SECTION CARDS */
+.sec-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+.sec-card{background:#0F0F18;border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:20px;position:relative;overflow:hidden}
+.sec-card.full{grid-column:1/-1}
+.sec-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px}
+.sc1::before{background:rgba(59,130,246,.5)}
+.sc2::before{background:linear-gradient(90deg,#6D28D9,#00C48C)}
+.sc3::before{background:rgba(217,119,6,.6)}
+.sc4::before{background:rgba(0,196,140,.6)}
+.sec-label{font-size:9px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:rgba(255,255,255,.25);margin-bottom:8px}
+.sec-title{font-size:14px;font-weight:700;color:#fff;margin-bottom:12px;letter-spacing:-.01em}
+.sec-body{font-size:13px;color:rgba(255,255,255,.6);line-height:1.75;white-space:pre-wrap;word-break:break-word}
+.sec-body strong,.sec-body b{color:rgba(255,255,255,.85)}
+
+/* INTEGRATION FINDINGS */
+.findings{display:flex;flex-direction:column;gap:8px}
+.finding{display:flex;gap:12px;background:rgba(0,196,140,.05);border:1px solid rgba(0,196,140,.12);border-radius:10px;padding:12px 14px}
+.finding-n{font-size:11px;font-weight:800;color:#00C48C;flex-shrink:0;width:18px;margin-top:2px}
+.finding-t{font-size:13px;color:rgba(255,255,255,.7);line-height:1.6}
+
+/* CLASSIFICATION */
+.classif{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.cl-pill{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:4px 11px;border-radius:7px}
+.cl-port{background:rgba(59,130,246,.12);color:#60A5FA;border:1px solid rgba(59,130,246,.2)}
+.cl-reg{background:rgba(109,40,217,.12);color:#A78BFA;border:1px solid rgba(109,40,217,.2)}
+.cl-text{font-size:13px;color:rgba(255,255,255,.5);line-height:1.5}
+
+/* POWERED BY */
+.powered{text-align:center;margin-top:32px;font-size:12px;color:rgba(255,255,255,.2)}
+.powered a{color:rgba(0,196,140,.6);text-decoration:none}
+
+@media(max-width:640px){.sec-grid{grid-template-columns:1fr}.hero-stats{gap:20px}}
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="nav-l">
+    <div class="nav-pulse"></div>
+    <span class="nav-name">BFSI Risk Intelligence</span>
+    <div class="nav-sep"></div>
+    <span class="nav-sub">Command Center</span>
+  </div>
+  <span class="nav-badge">Powered by Lyzr</span>
+</nav>
+
+<section class="hero">
+  <div class="hero-tag">🏦 BFSI · Multi-Agent AI</div>
+  <h1>Enterprise Risk<br/><span>Intelligence</span> at Scale</h1>
+  <p class="hero-sub">Portfolio Early Warning + Regulatory Impact Assessment — integrated by AI agents. Built for CROs, Risk Committees, and Board governance.</p>
+  <div class="hero-stats">
+    <div class="stat"><div class="stat-n">4</div><div class="stat-l">Orchestrated Agents</div></div>
+    <div class="stat"><div class="stat-n">2</div><div class="stat-l">Parallel Pipelines</div></div>
+    <div class="stat"><div class="stat-n">5</div><div class="stat-l">KB Documents</div></div>
+    <div class="stat"><div class="stat-n">2</div><div class="stat-l">Report Formats</div></div>
+  </div>
+</section>
+
+<div class="main">
+
+  <div class="input-panel">
+    <div class="input-hd">
+      <span class="input-title">Enter portfolio data, a regulatory circular, or both</span>
+    </div>
+
+    <div class="examples-row">
+      <button class="eg-btn" onclick="loadExample('portfolio')" id="eg1">
+        📊 Portfolio Only
+      </button>
+      <button class="eg-btn" onclick="loadExample('regulatory')" id="eg2">
+        📋 Regulatory Only
+      </button>
+      <button class="eg-btn" onclick="loadExample('combined')" id="eg3">
+        ⚡ Full Pipeline (Both)
+      </button>
+    </div>
+
+    <textarea class="inp" id="inp" placeholder="Example:&#10;Portfolio:&#10;1. Muthoot Microfin, Microfinance, Rs 450 crore exposure&#10;2. Sunteck Realty, Real estate, Rs 280 crore exposure&#10;&#10;Regulatory: RBI consumer credit risk weight increase November 2023" rows="7"></textarea>
+
+    <div class="run-row">
+      <button class="run-btn" id="run-btn" onclick="runQuery()">
+        Run Analysis <span>→</span>
+      </button>
+      <button class="clear-btn" onclick="clearAll()">Clear</button>
+    </div>
+
+    <div class="pipeline" id="pipeline" style="display:none">
+      <div class="pipe-stage" id="ps1"><div class="pipe-dot"></div>Router</div>
+      <span class="pipe-arr">→</span>
+      <div class="pipe-stage" id="ps2"><div class="pipe-dot"></div>EWS Sentinel</div>
+      <span class="pipe-arr">→</span>
+      <div class="pipe-stage" id="ps3"><div class="pipe-dot"></div>FinReg Assessor</div>
+      <span class="pipe-arr">→</span>
+      <div class="pipe-stage" id="ps4"><div class="pipe-dot"></div>Nexus Integrator</div>
+      <span class="pipe-arr">→</span>
+      <div class="pipe-stage" id="ps5"><div class="pipe-dot"></div>Report</div>
+    </div>
+  </div>
+
+  <div class="err" id="err">
+    <div class="err-t">Analysis failed</div>
+    <div class="err-m" id="err-m"></div>
+  </div>
+
+  <div class="ld" id="ld">
+    <div class="ld-ring"></div>
+    <div class="ld-t" id="ld-t">Routing input...</div>
+    <div class="ld-s">Multi-agent pipeline processing</div>
+  </div>
+
+  <div class="results" id="results">
+    <div class="res-header">
+      <span class="res-title">Intelligence Report</span>
+      <span class="res-badge" id="risk-badge">Analysed</span>
+      <button class="new-btn" onclick="clearAll()">New analysis</button>
+    </div>
+
+    <div class="sec-grid">
+      <div class="sec-card sc1">
+        <div class="sec-label">Section 1</div>
+        <div class="sec-title">Input Classification</div>
+        <div class="sec-body" id="s1"></div>
+      </div>
+      <div class="sec-card sc3">
+        <div class="sec-label">Section 3</div>
+        <div class="sec-title">Board Risk Committee Summary</div>
+        <div class="sec-body" id="s3"></div>
+      </div>
+    </div>
+
+    <div class="sec-card sc2 full" style="margin-bottom:12px">
+      <div class="sec-label">Section 2</div>
+      <div class="sec-title">CRO Technical Brief</div>
+      <div class="sec-body" id="s2"></div>
+    </div>
+
+    <div class="sec-card sc4 full">
+      <div class="sec-label">Section 4 — Key Differentiator</div>
+      <div class="sec-title">Integration Findings</div>
+      <div class="findings" id="s4"></div>
+    </div>
+
+    <div class="powered">Built on <a href="https://studio.lyzr.ai" target="_blank">Lyzr Agent Studio</a> · Manager-Agent Orchestration · RAG Knowledge Base · Responsible AI</div>
+  </div>
+
+</div>
+
+<script>
+const SESSION_ID = 'bfsi_' + Date.now();
+
+const EXAMPLES = {
+  portfolio: `Portfolio:
+1. Muthoot Microfin, Microfinance, Rs 450 crore exposure
+2. Sunteck Realty, Real estate, Rs 280 crore exposure`,
+  regulatory: `Regulatory: RBI consumer credit risk weight increase November 2023 — assess full impact on NBFC operations`,
+  combined: `Portfolio:
+1. Muthoot Microfin, Microfinance, Rs 450 crore exposure
+2. Sunteck Realty, Real estate, Rs 280 crore exposure
+
+Regulatory: RBI consumer credit risk weight increase November 2023`
+};
+
+const STAGES = ['ps1','ps2','ps3','ps4','ps5'];
+const STAGE_LABELS = ['Routing input...','Credit Risk Sentinel running...','FinReg Assessor parsing...','Risk Nexus Integrating...','Generating reports...'];
+let stageTimer = null, stageIdx = 0;
+
+function loadExample(type) {
+  document.getElementById('inp').value = EXAMPLES[type];
+  document.querySelectorAll('.eg-btn').forEach(b => b.classList.remove('on'));
+  document.getElementById(`eg${type==='portfolio'?1:type==='regulatory'?2:3}`).classList.add('on');
+}
+
+function startStages() {
+  document.getElementById('pipeline').style.display = 'flex';
+  stageIdx = 0;
+  STAGES.forEach(s => { document.getElementById(s).classList.remove('active','done'); });
+  animateStage();
+}
+
+function animateStage() {
+  if (stageIdx < STAGES.length) {
+    if (stageIdx > 0) document.getElementById(STAGES[stageIdx-1]).classList.replace('active','done');
+    document.getElementById(STAGES[stageIdx]).classList.add('active');
+    document.getElementById('ld-t').textContent = STAGE_LABELS[stageIdx];
+    stageIdx++;
+    stageTimer = setTimeout(animateStage, 12000 / STAGES.length);
+  }
+}
+
+function stopStages() {
+  clearTimeout(stageTimer);
+  STAGES.forEach(s => {
+    const el = document.getElementById(s);
+    el.classList.remove('active');
+    el.classList.add('done');
+  });
+}
+
+async function runQuery() {
+  const msg = document.getElementById('inp').value.trim();
+  if (!msg) { document.getElementById('inp').focus(); return; }
+
+  // Reset UI
+  document.getElementById('err').style.display = 'none';
+  document.getElementById('results').style.display = 'none';
+  document.getElementById('run-btn').disabled = true;
+  document.getElementById('run-btn').innerHTML = 'Running... <span>↻</span>';
+  document.getElementById('ld').style.display = 'block';
+  document.getElementById('ld').scrollIntoView({behavior:'smooth',block:'center'});
+  startStages();
+
+  try {
+    const res = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: msg, session_id: SESSION_ID })
+    });
+    const data = await res.json();
+
+    if (!res.ok || data.error) {
+      throw new Error(data.error || `Server error ${res.status}`);
+    }
+
+    stopStages();
+    document.getElementById('ld').style.display = 'none';
+    render(data.response, msg);
+
+  } catch (e) {
+    stopStages();
+    document.getElementById('ld').style.display = 'none';
+    document.getElementById('err').style.display = 'block';
+    document.getElementById('err-m').textContent = e.message;
+  } finally {
+    document.getElementById('run-btn').disabled = false;
+    document.getElementById('run-btn').innerHTML = 'Run Analysis <span>→</span>';
+  }
+}
+
+function parseSection(text, sectionNum) {
+  const patterns = [
+    new RegExp(`SECTION\\s*${sectionNum}[:\\s#*]+([\\s\\S]*?)(?=SECTION\\s*${sectionNum+1}|$)`, 'i'),
+    new RegExp(`#{1,3}\\s*SECTION\\s*${sectionNum}[:\\s]+([\\s\\S]*?)(?=#{1,3}\\s*SECTION\\s*${sectionNum+1}|$)`, 'i')
+  ];
+  for (const p of patterns) {
+    const m = text.match(p);
+    if (m) return m[1].trim();
+  }
+  return null;
+}
+
+function detectRisk(text) {
+  const t = text.toUpperCase();
+  if (t.includes('CRITICAL') || (t.includes('RED') && t.includes('IMMEDIATE'))) return 'red';
+  if (t.includes('AMBER') || t.includes('ELEVATED') || t.includes('WATCH')) return 'amber';
+  return 'green';
+}
+
+function extractFindings(s4text) {
+  if (!s4text) return [];
+  const lines = s4text.split('\n').filter(l => l.trim());
+  const findings = [];
+  for (const l of lines) {
+    const m = l.match(/^[\d]+[\.\)]\s*(.+)/);
+    if (m && m[1].trim().length > 20) {
+      findings.push(m[1].trim().replace(/^\*+|\*+$/g,''));
+    } else if (l.trim().length > 40 && !l.match(/^(TOP|SECTION|INTEGRATION)/i)) {
+      findings.push(l.replace(/^[-•*]\s*/,'').replace(/^\*+|\*+$/g,'').trim());
+    }
+    if (findings.length >= 4) break;
+  }
+  return findings.filter(Boolean).slice(0,4);
+}
+
+function render(raw, inputMsg) {
+  const s1 = parseSection(raw, 1) || (inputMsg.length > 30 ? inputMsg.slice(0,120)+'...' : inputMsg);
+  const s2 = parseSection(raw, 2) || raw;
+  const s3 = parseSection(raw, 3) || '';
+  const s4raw = parseSection(raw, 4) || '';
+
+  // Section 1 — classification pills
+  const hasPort = /portfolio|PORTFOLIO_PIPELINE.*YES/i.test(s1 + inputMsg);
+  const hasReg  = /regulatory|REGULATORY_PIPELINE.*YES/i.test(s1 + inputMsg);
+  let s1html = `<div class="classif">`;
+  if (hasPort) s1html += `<span class="cl-pill cl-port">Portfolio EWS</span>`;
+  if (hasReg)  s1html += `<span class="cl-pill cl-reg">Regulatory</span>`;
+  s1html += `<span class="cl-text">${s1.replace(/SECTION.*?:/gi,'').slice(0,220)}</span></div>`;
+  document.getElementById('s1').innerHTML = s1html;
+
+  // Risk badge
+  const risk = detectRisk(s2 + s3);
+  const badge = document.getElementById('risk-badge');
+  badge.textContent = risk === 'red' ? 'High Risk' : risk === 'amber' ? 'Elevated Risk' : 'Monitored';
+  badge.className = 'res-badge badge-' + risk;
+
+  // Section 2 — CRO brief (preserve formatting)
+  document.getElementById('s2').textContent = s2.slice(0, 3000);
+
+  // Section 3 — Board summary
+  document.getElementById('s3').textContent = s3 || 'See CRO Technical Brief for full details.';
+
+  // Section 4 — findings as cards
+  const findings = extractFindings(s4raw);
+  const s4el = document.getElementById('s4');
+  if (findings.length > 0) {
+    s4el.innerHTML = findings.map((f,i) =>
+      `<div class="finding"><div class="finding-n">${i+1}</div><div class="finding-t">${f}</div></div>`
+    ).join('');
+  } else if (s4raw) {
+    s4el.innerHTML = `<div class="sec-body">${s4raw.slice(0,600)}</div>`;
+  } else {
+    s4el.innerHTML = `<div class="sec-body" style="color:rgba(255,255,255,.3)">Integration findings will appear here on combined pipeline runs.</div>`;
+  }
+
+  document.getElementById('results').style.display = 'block';
+  document.getElementById('results').scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+function clearAll() {
+  document.getElementById('inp').value = '';
+  document.getElementById('results').style.display = 'none';
+  document.getElementById('err').style.display = 'none';
+  document.getElementById('pipeline').style.display = 'none';
+  document.querySelectorAll('.eg-btn').forEach(b => b.classList.remove('on'));
+  STAGES.forEach(s => document.getElementById(s).classList.remove('active','done'));
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+document.getElementById('inp').addEventListener('keydown', e => {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') runQuery();
+});
+</script>
+</body>
+</html>

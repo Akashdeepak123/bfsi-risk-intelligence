@@ -1,0 +1,7 @@
+{
+  "name": "bfsi-risk-intelligence",
+  "version": "1.0.0",
+  "description": "BFSI Risk Intelligence Command Center — Lyzr Agent Studio",
+  "scripts": { "dev": "vercel dev" },
+  "dependencies": {}
+}
