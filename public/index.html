@@ -308,7 +308,13 @@ async function runQuery() {
 function showResult(text, input) {
   // Section split by plain string indexOf
   var sections = { 1: '', 2: '', 3: '', 4: '' };
-  var clean = text.replace(/#{1,4}\s*/g, '');
+  // Strip all markdown that breaks section detection
+  var clean = text
+    .replace(/#{1,6}\s*/g, '')
+    .replace(/\*\*\*(.+?)\*\*\*/g, '$1')
+    .replace(/\*\*(.+?)\*\*/g, '$1')
+    .replace(/\*([^*]+?)\*/g, '$1')
+    .replace(/__(.+?)__/g, '$1');
 
   [1,2,3,4].forEach(function(n) {
     var marker = 'SECTION ' + n;
@@ -323,7 +329,18 @@ function showResult(text, input) {
     ).trim();
   });
 
-  // Section 1
+  // Fallback: if Section 4 empty, look for integration-related headings
+  if (!sections[4]) {
+    var alt4 = ['TOP 3 INTEGRATION', 'INTEGRATION FINDING', 'KEY INTEGRATION',
+                'SECTION 4', 'INTEGRATION HIGHLIGHTS', 'TOP INTEGRATION'];
+    for (var ai = 0; ai < alt4.length; ai++) {
+      var altIdx = clean.toUpperCase().indexOf(alt4[ai]);
+      if (altIdx !== -1) {
+        var altAfter = clean.indexOf('\n', altIdx);
+        if (altAfter !== -1) { sections[4] = clean.slice(altAfter).trim(); break; }
+      }
+    }
+  }
   var inp = (input || '').toUpperCase();
   var hasPort = inp.includes('PORTFOLIO') || inp.includes('EXPOSURE');
   var hasReg  = inp.includes('REGULATORY') || inp.includes('RBI');
@@ -351,10 +368,17 @@ function showResult(text, input) {
   var lines = s4.split('\n');
   var findings = [];
   for (var i = 0; i < lines.length; i++) {
-    var l = lines[i].trim().replace(/\*\*/g, '');
-    var m = l.match(/^[1-9][.)]\s+(.{15,})/);
-    if (m) findings.push(m[1]);
-    else if (/^[-•]\s+.{15,}/.test(l)) findings.push(l.replace(/^[-•]\s+/, ''));
+    // Strip markdown from line before matching
+    var l = lines[i].trim()
+      .replace(/\*\*(.+?)\*\*/g, '$1')
+      .replace(/\*(.+?)\*/g, '$1');
+    if (!l || l.length < 15) continue;
+    // Numbered: "1. text" or "1) text" — possibly bold was stripped
+    var m = l.match(/^[1-9][.)]\s+(.{10,})/);
+    if (m) { findings.push(m[1].trim()); continue; }
+    // Bullet: "- text" or "• text"
+    var b = l.match(/^[-•*]\s+(.{10,})/);
+    if (b) { findings.push(b[1].trim()); continue; }
     if (findings.length >= 4) break;
   }
   var s4el = document.getElementById('s4');
@@ -365,7 +389,7 @@ function showResult(text, input) {
   } else {
     s4el.innerHTML = s4
       ? '<div class="sec-body">' + s4.slice(0, 600) + '</div>'
-      : '<div class="sec-body" style="color:rgba(255,255,255,.3)">Run full pipeline to see integration findings.</div>';
+      : '<div class="sec-body" style="color:rgba(255,255,255,.6);white-space:pre-wrap">' + text.slice(-800) + '</div>';
   }
 
   document.getElementById('results').style.display = 'block';
